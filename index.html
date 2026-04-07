@@ -1,13 +1,685 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Margem - Widi Care</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --surface-color: #ffffff;
+            --primary-color: #1a3a6e;
+            --positive-color: #16a34a;
+            --negative-color: #dc2626;
+            --alert-color: #f59e0b;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 12px;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 1200px) {
+            .layout {
+                grid-template-columns: 1.2fr 0.8fr;
+            }
+        }
+
+        .card {
+            background: var(--surface-color);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            height: fit-content;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #64748b;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .search-container {
+            position: relative;
+        }
+
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            z-index: 100;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .autocomplete-item .sku {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-right: 8px;
+        }
+
+        .product-list {
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .product-item {
+            display: grid;
+            grid-template-columns: 2fr 80px 100px 100px 40px;
+            gap: 10px;
+            padding: 12px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        .product-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-item input {
+            padding: 6px;
+            font-size: 12px;
+        }
+
+        .btn-remove {
+            background: none;
+            border: none;
+            color: var(--negative-color);
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .row-flex {
+            display: flex;
+            gap: 16px;
+        }
+
+        .row-flex > div {
+            flex: 1;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Right Column Table */
+        .dre-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .dre-table th, .dre-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .dre-table th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .dre-table .bold {
+            font-weight: 700;
+        }
+
+        .dre-table .highlight {
+            background-color: #f1f5f9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        .badge-healthy { background-color: #dcfce7; color: var(--positive-color); }
+        .badge-attention { background-color: #fef3c7; color: var(--alert-color); }
+        .badge-critical { background-color: #fee2e2; color: var(--negative-color); }
+
+        .alert-box {
+            background-color: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .summary-info {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .summary-info b {
+            color: var(--text-color);
+        }
+
+        .break-even {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border-color);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .manual-add {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-add-manual {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .input-mini {
+            width: 60px !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Widi Care | Calculadora de Margem de Kits</h1>
+    </header>
+
+    <div class="layout">
+        <!-- Coluna Esquerda: Montagem -->
+        <div class="card">
+            <div class="section-title">Montagem do Kit / Promoção</div>
+            
+            <div class="form-group">
+                <label>Nome da Promoção</label>
+                <input type="text" id="promoName" placeholder="Ex: Combo Juba Completo">
+            </div>
+
+            <div class="row-flex">
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="promoType">
+                        <option value="kit">Kit de Produtos</option>
+                        <option value="promo">Promoção Simples</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Alíquota Imposto (%)</label>
+                    <input type="number" id="taxRate" value="6" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-group search-container">
+                <label>Buscar Produto (Nome ou SKU)</label>
+                <input type="text" id="productSearch" placeholder="Digite para buscar...">
+                <div id="searchResults" class="autocomplete-results"></div>
+            </div>
+
+            <div class="manual-add">
+                <button class="btn-add-manual" id="btnAddManual">+ Adicionar Produto Manual</button>
+            </div>
+
+            <div class="product-list" id="productList">
+                <!-- Itens adicionados aparecerão aqui -->
+            </div>
+
+            <div style="margin-top: 24px;">
+                <div class="row-flex">
+                    <div class="form-group">
+                        <label>Preço de Venda Final (R$)</label>
+                        <input type="number" id="kitPrice" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Desconto sobre Preço Cheio (%)</label>
+                        <input type="number" id="discountPercent" step="0.1" value="0">
+                    </div>
+                </div>
+
+                <div class="row-flex">
+                    <div class="form-group">
+                        <label>Frete cobrado do cliente (R$)</label>
+                        <input type="number" id="shippingCharged" step="0.01" value="0">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="freeShipping">
+                            <label for="freeShipping" style="margin-bottom: 0;">Frete Grátis</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row-flex">
+                    <div class="form-group">
+                        <label>Mix Cartão (%)</label>
+                        <input type="number" id="mixCard" value="58.8" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Mix PIX (%)</label>
+                        <input type="number" id="mixPix" value="40.9" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Direita: Resultados -->
+        <div class="card">
+            <div class="section-title">DRE em Tempo Real</div>
+            
+            <table class="dre-table">
+                <thead>
+                    <tr>
+                        <th>Linha</th>
+                        <th>R$</th>
+                        <th>% RL</th>
+                    </tr>
+                </thead>
+                <tbody id="dreBody">
+                    <!-- Preenchido via JS -->
+                </tbody>
+            </table>
+
+            <div id="healthBadgeContainer"></div>
+            <div id="ebitdaAlertContainer"></div>
+
+            <div class="summary-info" id="priceSummary">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <div class="break-even" id="breakEvenContainer">
+                <!-- Preenchido via JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const catalogo = [
+        { sku: "3255", nome: "Mousse Juba Crespo Crespíssimo 200ml", custo: 6.03, preco: 51.15 },
+        { sku: "3545", nome: "Creme Pentear Juba Transição Densa 500ml", custo: 8.22, preco: 59.90 },
+        { sku: "1046", nome: "Shampoo Juba Higienizando 500ml", custo: 12.40, preco: 53.90 },
+        { sku: "827",  nome: "Creme Pentear Encaracolando Juba 500ml", custo: 11.10, preco: 59.90 },
+        { sku: "3248", nome: "Máscara Reconstrução Juba 500g", custo: 9.75, preco: 59.90 },
+        { sku: "3552", nome: "Máscara Fortificante Juba Transição 500g", custo: 7.18, preco: 59.90 },
+        { sku: "3231", nome: "Acidificante Acidificando A Juba 500ml", custo: 6.88, preco: 59.90 },
+        { sku: "2661", nome: "Shampoo Juba Higienizando 1L", custo: 20.80, preco: 97.90 },
+        { sku: "3514", nome: "Shampoo Juba Transição Capilar 500ml", custo: 8.39, preco: 59.90 },
+        { sku: "3521", nome: "Condicionador Juba Transição 500ml", custo: 6.48, preco: 59.90 },
+        { sku: "841",  nome: "Mousse Juba Criador De Cachos 200ml", custo: 11.91, preco: 51.15 },
+        { sku: "2883", nome: "Máscara Nutrição Juba Butter Oil 500g", custo: 16.47, preco: 59.90 },
+        { sku: "2654", nome: "Creme Pentear Encaracolando Juba 1L", custo: 17.66, preco: 107.90 },
+        { sku: "2630", nome: "Creme Pentear Encrespando Juba 1L", custo: 20.63, preco: 107.90 },
+        { sku: "2012", nome: "Condicionador Condicionando A Juba 500ml", custo: 12.96, preco: 53.90 }
+    ];
+
+    let kitItems = [];
+    let isUpdatingFromPrice = false;
+    let isUpdatingFromPercent = false;
+
+    // DOM Elements
+    const productSearch = document.getElementById('productSearch');
+    const searchResults = document.getElementById('searchResults');
+    const productList = document.getElementById('productList');
+    const kitPriceInput = document.getElementById('kitPrice');
+    const discountPercentInput = document.getElementById('discountPercent');
+    const shippingChargedInput = document.getElementById('shippingCharged');
+    const freeShippingCheckbox = document.getElementById('freeShipping');
+    const taxRateInput = document.getElementById('taxRate');
+    const mixCardInput = document.getElementById('mixCard');
+    const mixPixInput = document.getElementById('mixPix');
+    const btnAddManual = document.getElementById('btnAddManual');
+
+    // Formatting
+    const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    const formatPct = (val) => val.toFixed(2).replace('.', ',') + '%';
+
+    // Search Logic
+    productSearch.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        if (term.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        const matches = catalogo.filter(p => 
+            p.nome.toLowerCase().includes(term) || p.sku.includes(term)
+        );
+
+        if (matches.length > 0) {
+            searchResults.innerHTML = matches.map(p => `
+                <div class="autocomplete-item" onclick="addItem('${p.sku}')">
+                    <span class="sku">${p.sku}</span> ${p.nome} - ${formatBRL(p.preco)}
+                </div>
+            `).join('');
+            searchResults.style.display = 'block';
+        } else {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!productSearch.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    function addItem(sku) {
+        const product = catalogo.find(p => p.sku === sku);
+        if (product) {
+            kitItems.push({
+                sku: product.sku,
+                nome: product.nome,
+                custo: product.custo,
+                preco: product.preco,
+                qtd: 1
+            });
+            renderKit();
+            calculate();
+        }
+        productSearch.value = '';
+        searchResults.style.display = 'none';
+    }
+
+    btnAddManual.addEventListener('click', () => {
+        kitItems.push({
+            sku: 'MANUAL',
+            nome: 'Produto Manual',
+            custo: 0,
+            preco: 0,
+            qtd: 1
+        });
+        renderKit();
+        calculate();
+    });
+
+    function removeItem(index) {
+        kitItems.splice(index, 1);
+        renderKit();
+        calculate();
+    }
+
+    function updateItem(index, field, value) {
+        kitItems[index][field] = value;
+        calculate();
+    }
+
+    function renderKit() {
+        productList.innerHTML = kitItems.map((item, index) => `
+            <div class="product-item">
+                <div title="${item.nome}">
+                    <input type="text" value="${item.nome}" onchange="updateItem(${index}, 'nome', this.value)" style="width: 100%">
+                </div>
+                <div>
+                    <input type="number" value="${item.qtd}" min="1" onchange="updateItem(${index}, 'qtd', parseFloat(this.value))" class="input-mini">
+                </div>
+                <div>
+                    <input type="number" value="${item.preco}" step="0.01" onchange="updateItem(${index}, 'preco', parseFloat(this.value))" style="width: 100%">
+                </div>
+                <div>
+                    <input type="number" value="${item.custo}" step="0.01" onchange="updateItem(${index}, 'custo', parseFloat(this.value))" style="width: 100%">
+                </div>
+                <div>
+                    <button class="btn-remove" onclick="removeItem(${index})">&times;</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Calculation Logic
+    function calculate() {
+        const fullPrice = kitItems.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+        const totalCogsProducts = kitItems.reduce((acc, item) => acc + (item.custo * item.qtd), 0);
+
+        let sellingPrice = parseFloat(kitPriceInput.value) || 0;
+        let discountPercent = parseFloat(discountPercentInput.value) || 0;
+
+        // Sync Price and Percent
+        if (isUpdatingFromPrice) {
+            if (fullPrice > 0) {
+                discountPercent = ((fullPrice - sellingPrice) / fullPrice) * 100;
+                discountPercentInput.value = discountPercent.toFixed(2);
+            }
+        } else if (isUpdatingFromPercent) {
+            sellingPrice = fullPrice * (1 - discountPercent / 100);
+            kitPriceInput.value = sellingPrice.toFixed(2);
+        } else {
+            if (discountPercent > 0) {
+                sellingPrice = fullPrice * (1 - discountPercent / 100);
+                kitPriceInput.value = sellingPrice.toFixed(2);
+            }
+        }
+
+        const shippingCharged = freeShippingCheckbox.checked ? 0 : (parseFloat(shippingChargedInput.value) || 0);
+        const discountApplied = fullPrice - sellingPrice;
+        
+        // Formula: receita_liquida = preco_kit + frete_cobrado - desconto_aplicado
+        // preco_kit = fullPrice
+        const rl = fullPrice + shippingCharged - discountApplied;
+        
+        const cmvTotal = totalCogsProducts + 4.27;
+        const shippingAbsorbed = Math.max(0, 35.77 - shippingCharged);
+        
+        const mixCard = (parseFloat(mixCardInput.value) || 0) / 100;
+        const mixPix = (parseFloat(mixPixInput.value) || 0) / 100;
+        
+        // Formula: gateway = (receita_liquida × pct_cartao × 0.025) + (receita_liquida × pct_pix × 0.0119)
+        const gateway = (rl * mixCard * 0.025) + (rl * mixPix * 0.0119);
+        const platformFee = rl * 0.005;
+        
+        const taxRate = (parseFloat(taxRateInput.value) || 0) / 100;
+        const taxes = rl * taxRate;
+
+        // Formula: margem_bruta = receita_liquida - cmv_total - frete_absorvido - gateway - taxa_plataforma - impostos
+        const grossMargin = rl - cmvTotal - shippingAbsorbed - gateway - platformFee - taxes;
+        
+        // Formula: ebitda = margem_bruta - 7.08 - 15.93
+        const ebitda = grossMargin - 7.08 - 15.93;
+
+        const gmPct = rl > 0 ? (grossMargin / rl) * 100 : 0;
+        const ebitdaPct = rl > 0 ? (ebitda / rl) * 100 : 0;
+
+        // Formula: ponto_equilibrio = Math.ceil(66045 / ebitda)
+        const breakEven = ebitda > 0 ? Math.ceil(66045 / ebitda) : 'N/A';
+
+        updateUI({
+            fullPrice, sellingPrice, shippingCharged, discountApplied, rl,
+            cmvTotal, shippingAbsorbed, gatewayPlatform: gateway + platformFee, taxes,
+            grossMargin, ebitda, gmPct, ebitdaPct, breakEven
+        });
+    }
+
+    function updateUI(data) {
+        const rl = data.rl;
+        const getPct = (val) => rl > 0 ? formatPct((val / rl) * 100) : '0,00%';
+
+        document.getElementById('dreBody').innerHTML = `
+            <tr><td>Preço de venda (cheio)</td><td>${formatBRL(data.fullPrice)}</td><td>—</td></tr>
+            <tr><td>+ Frete cobrado</td><td>${formatBRL(data.shippingCharged)}</td><td>—</td></tr>
+            <tr><td>− Desconto aplicado</td><td>${formatBRL(data.discountApplied)}</td><td>—</td></tr>
+            <tr class="highlight bold"><td>= Receita Líquida</td><td>${formatBRL(rl)}</td><td>100%</td></tr>
+            <tr><td>− CMV (Prod + Emb)</td><td>${formatBRL(data.cmvTotal)}</td><td>${getPct(data.cmvTotal)}</td></tr>
+            <tr><td>− Frete absorvido</td><td>${formatBRL(data.shippingAbsorbed)}</td><td>${getPct(data.shippingAbsorbed)}</td></tr>
+            <tr><td>− Plataforma + Gateway</td><td>${formatBRL(data.gatewayPlatform)}</td><td>${getPct(data.gatewayPlatform)}</td></tr>
+            <tr><td>− Impostos</td><td>${formatBRL(data.taxes)}</td><td>${getPct(data.taxes)}</td></tr>
+            <tr class="highlight bold"><td>= Margem Bruta</td><td>${formatBRL(data.grossMargin)}</td><td>${formatPct(data.gmPct)}</td></tr>
+            <tr><td>− Time (Fixo)</td><td>R$ 7,08</td><td>${getPct(7.08)}</td></tr>
+            <tr><td>− Marketing (Fixo)</td><td>R$ 15,93</td><td>${getPct(15.93)}</td></tr>
+            <tr class="highlight bold"><td>= EBITDA</td><td>${formatBRL(data.ebitda)}</td><td>${formatPct(data.ebitdaPct)}</td></tr>
+        `;
+
+        // Badge
+        let badgeClass = 'badge-critical';
+        let badgeText = '● CRÍTICO';
+        if (data.gmPct > 50) {
+            badgeClass = 'badge-healthy';
+            badgeText = '● SAUDÁVEL';
+        } else if (data.gmPct >= 30) {
+            badgeClass = 'badge-attention';
+            badgeText = '● ATENÇÃO';
+        }
+        document.getElementById('healthBadgeContainer').innerHTML = `<span class="badge ${badgeClass}">${badgeText}</span>`;
+
+        // EBITDA Alert
+        if (data.ebitdaPct < 20) {
+            document.getElementById('ebitdaAlertContainer').innerHTML = `<div class="alert-box">⚠️ EBITDA abaixo de 20% — revisar precificação</div>`;
+        } else {
+            document.getElementById('ebitdaAlertContainer').innerHTML = '';
+        }
+
+        // Summary
+        const discountPct = data.fullPrice > 0 ? (data.discountApplied / data.fullPrice) * 100 : 0;
+        document.getElementById('priceSummary').innerHTML = `
+            Preço cheio: <b>${formatBRL(data.fullPrice)}</b> | 
+            Desconto: <b>${discountPct.toFixed(1)}%</b> | 
+            Economia: <b>${formatBRL(data.discountApplied)}</b>
+        `;
+
+        // Break Even
+        document.getElementById('breakEvenContainer').innerHTML = `
+            Ponto de equilíbrio: Para cobrir custos fixos (R$ 66.045/mês), vender <b>${data.breakEven}</b> unidades/mês deste kit.
+        `;
+    }
+
+    // Event Listeners for Inputs
+    kitPriceInput.addEventListener('input', () => {
+        isUpdatingFromPrice = true;
+        isUpdatingFromPercent = false;
+        calculate();
+    });
+
+    discountPercentInput.addEventListener('input', () => {
+        isUpdatingFromPrice = false;
+        isUpdatingFromPercent = true;
+        calculate();
+    });
+
+    [shippingChargedInput, taxRateInput, mixCardInput, mixPixInput].forEach(el => {
+        el.addEventListener('input', () => {
+            isUpdatingFromPrice = false;
+            isUpdatingFromPercent = false;
+            calculate();
+        });
+    });
+
+    freeShippingCheckbox.addEventListener('change', (e) => {
+        shippingChargedInput.disabled = e.target.checked;
+        if (e.target.checked) shippingChargedInput.value = 0;
+        calculate();
+    });
+
+    // Initial Calc
+    calculate();
+</script>
+
+</body>
+</html>
