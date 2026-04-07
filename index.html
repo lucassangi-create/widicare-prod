@@ -692,7 +692,6 @@
         }
 
         // Summary
-        const discountPct = data.fullPrice > 0 ? (data.discountApplied / data.fullPrice) * 100 : 0;
         document.getElementById('priceSummary').innerHTML = `
             Preço cheio: <b>${formatBRL(data.fullPrice)}</b> | 
             Desconto: <b>${discountPct.toFixed(1)}%</b> | 
