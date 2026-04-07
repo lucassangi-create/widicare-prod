@@ -21,7 +21,9 @@ import {
   DollarSign,
   ChevronRight,
   AlertCircle,
-  Calculator
+  Calculator,
+  Search,
+  Minus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatCurrency, formatPercent } from './lib/utils';
@@ -109,13 +111,18 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }: {
 );
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'kits' | 'costs' | 'coupons'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'kits' | 'costs' | 'coupons' | 'calculator'>('dashboard');
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [kits, setKits] = useState<Kit[]>(INITIAL_KITS);
   const [globalCosts, setGlobalCosts] = useState<GlobalCosts>(INITIAL_GLOBAL_COSTS);
   const [fixedCosts, setFixedCosts] = useState<FixedCosts[]>(INITIAL_FIXED_COSTS);
   const [coupons, setCoupons] = useState<Coupon[]>(INITIAL_COUPONS);
   const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
+
+  // --- Calculator State ---
+  const [calcItems, setCalcItems] = useState<{ productId: string, quantity: number }[]>([]);
+  const [calcDiscount, setCalcDiscount] = useState<{ type: 'percentage' | 'fixed', value: number }>({ type: 'percentage', value: 0 });
+  const [searchTerm, setSearchTerm] = useState('');
 
   // --- Calculations ---
 
@@ -209,6 +216,279 @@ export default function App() {
   };
 
   // --- Renderers ---
+
+  const renderCalculator = () => {
+    const filteredProducts = products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const calcAnalysis = useMemo(() => {
+      const totalOriginalPrice = calcItems.reduce((acc, item) => {
+        const product = products.find(p => p.id === item.productId);
+        return acc + (product ? product.price * item.quantity : 0);
+      }, 0);
+
+      const totalCogs = calcItems.reduce((acc, item) => {
+        const product = products.find(p => p.id === item.productId);
+        return acc + (product ? product.cogs * item.quantity : 0);
+      }, 0);
+
+      const discount = calcDiscount.type === 'percentage' 
+        ? (totalOriginalPrice * calcDiscount.value / 100) 
+        : calcDiscount.value;
+
+      const finalPrice = Math.max(0, totalOriginalPrice - discount);
+      const taxes = finalPrice * (globalCosts.taxRate / 100);
+      const marketplaceFees = finalPrice > 0 ? (finalPrice * (globalCosts.marketplaceFee / 100)) + globalCosts.fixedMarketplaceFee : 0;
+      const shipping = calcItems.length > 0 ? globalCosts.averageShipping : 0;
+      const otherVariable = finalPrice * (globalCosts.otherVariableCosts / 100);
+      
+      const contributionMargin = finalPrice - totalCogs - taxes - marketplaceFees - shipping - otherVariable;
+      const contributionMarginPercent = finalPrice > 0 ? (contributionMargin / finalPrice) * 100 : 0;
+
+      return {
+        revenue: finalPrice,
+        cogs: totalCogs,
+        taxes,
+        marketplaceFees,
+        shipping,
+        otherVariable,
+        couponDiscount: discount,
+        contributionMargin,
+        contributionMarginPercent,
+        totalOriginalPrice
+      };
+    }, [calcItems, calcDiscount, products, globalCosts]);
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left: Search and Selection */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card title="Montar Promoção / Simulação">
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Pesquisar por nome ou SKU..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+              />
+            </div>
+
+            {searchTerm && (
+              <div className="mb-8 border border-slate-100 rounded-lg overflow-hidden">
+                <div className="bg-slate-50 px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resultados da Busca</div>
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredProducts.length > 0 ? filteredProducts.map(p => (
+                    <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{p.name}</p>
+                        <p className="text-xs text-slate-500">{p.sku} • {formatCurrency(p.price)}</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const existing = calcItems.find(item => item.productId === p.id);
+                          if (existing) {
+                            setCalcItems(calcItems.map(item => item.productId === p.id ? { ...item, quantity: item.quantity + 1 } : item));
+                          } else {
+                            setCalcItems([...calcItems, { productId: p.id, quantity: 1 }]);
+                          }
+                          setSearchTerm('');
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )) : (
+                    <div className="px-4 py-8 text-center text-slate-400 text-sm">Nenhum produto encontrado.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Itens na Simulação</h4>
+              {calcItems.length > 0 ? calcItems.map(item => {
+                const product = products.find(p => p.id === item.productId);
+                if (!product) return null;
+                return (
+                  <div key={item.productId} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">{product.name}</p>
+                      <p className="text-xs text-slate-500">{formatCurrency(product.price)} un.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 border border-slate-200">
+                        <button 
+                          onClick={() => {
+                            if (item.quantity > 1) {
+                              setCalcItems(calcItems.map(i => i.productId === item.productId ? { ...i, quantity: i.quantity - 1 } : i));
+                            } else {
+                              setCalcItems(calcItems.filter(i => i.productId !== item.productId));
+                            }
+                          }}
+                          className="p-1 hover:bg-white rounded transition-colors text-slate-500"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
+                        <button 
+                          onClick={() => setCalcItems(calcItems.map(i => i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i))}
+                          className="p-1 hover:bg-white rounded transition-colors text-slate-500"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="text-right w-24">
+                        <p className="text-sm font-bold text-slate-900">{formatCurrency(product.price * item.quantity)}</p>
+                      </div>
+                      <button 
+                        onClick={() => setCalcItems(calcItems.filter(i => i.productId !== item.productId))}
+                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-xl">
+                  <Package className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">Adicione produtos para começar a simulação.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card title="Descontos da Promoção">
+            <div className="flex items-center gap-6">
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button 
+                  onClick={() => setCalcDiscount({ ...calcDiscount, type: 'percentage' })}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-bold transition-all",
+                    calcDiscount.type === 'percentage' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Porcentagem (%)
+                </button>
+                <button 
+                  onClick={() => setCalcDiscount({ ...calcDiscount, type: 'fixed' })}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-bold transition-all",
+                    calcDiscount.type === 'fixed' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Valor Fixo (R$)
+                </button>
+              </div>
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
+                  {calcDiscount.type === 'percentage' ? '%' : 'R$'}
+                </span>
+                <input 
+                  type="number" 
+                  value={calcDiscount.value}
+                  onChange={(e) => setCalcDiscount({ ...calcDiscount, value: parseFloat(e.target.value) || 0 })}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right: Summary */}
+        <div className="space-y-6">
+          <Card className="bg-slate-900 text-white border-none shadow-xl shadow-blue-900/20">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-400" /> Resultado Final
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Subtotal</span>
+                <span className="font-medium">{formatCurrency(calcAnalysis.totalOriginalPrice)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Desconto Aplicado</span>
+                <span className="font-medium text-rose-400">-{formatCurrency(calcAnalysis.couponDiscount)}</span>
+              </div>
+              <div className="h-px bg-slate-800 my-2"></div>
+              <div className="flex justify-between items-end">
+                <span className="text-sm text-slate-400">Faturamento Líquido</span>
+                <span className="text-2xl font-bold text-blue-400">{formatCurrency(calcAnalysis.revenue)}</span>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-slate-800 space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Custo de Mercadoria (COGS)</span>
+                <span className="font-medium">-{formatCurrency(calcAnalysis.cogs)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Impostos & Taxas</span>
+                <span className="font-medium">-{formatCurrency(calcAnalysis.taxes + calcAnalysis.marketplaceFees + calcAnalysis.otherVariable)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Logística (Frete Médio)</span>
+                <span className="font-medium">-{formatCurrency(calcAnalysis.shipping)}</span>
+              </div>
+            </div>
+
+            <div className="mt-8 p-4 bg-blue-600/10 rounded-xl border border-blue-500/20">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Margem de Contribuição</span>
+                <span className={cn(
+                  "text-lg font-bold",
+                  calcAnalysis.contributionMargin > 0 ? "text-emerald-400" : "text-rose-400"
+                )}>
+                  {formatCurrency(calcAnalysis.contributionMargin)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-400">Porcentagem Final</span>
+                <span className={cn(
+                  "text-sm font-bold",
+                  calcAnalysis.contributionMarginPercent > 15 ? "text-emerald-400" : "text-amber-400"
+                )}>
+                  {formatPercent(calcAnalysis.contributionMarginPercent)}
+                </span>
+              </div>
+            </div>
+
+            {calcAnalysis.contributionMargin < 0 && (
+              <div className="mt-4 p-3 bg-rose-500/20 border border-rose-500/30 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                <p className="text-xs text-rose-200 leading-relaxed">
+                  Esta promoção está gerando **prejuízo**. Revise o desconto ou os custos variáveis.
+                </p>
+              </div>
+            )}
+          </Card>
+
+          <Card title="Dicas de Otimização">
+            <ul className="space-y-4">
+              <li className="flex gap-3">
+                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">1</div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Tente aumentar o **Ticket Médio** adicionando produtos com alta margem para compensar o desconto.
+                </p>
+              </li>
+              <li className="flex gap-3">
+                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">2</div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  O frete fixo de **{formatCurrency(globalCosts.averageShipping)}** impacta mais em pedidos de baixo valor.
+                </p>
+              </li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    );
+  };
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -535,6 +815,15 @@ export default function App() {
         
         <nav className="flex-1 p-4 space-y-1">
           <button 
+            onClick={() => setActiveTab('calculator')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium",
+              activeTab === 'calculator' ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" : "hover:bg-slate-800 hover:text-white"
+            )}
+          >
+            <Calculator className="w-4 h-4" /> Calculadora
+          </button>
+          <button 
             onClick={() => setActiveTab('dashboard')}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium",
@@ -587,6 +876,7 @@ export default function App() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">
+              {activeTab === 'calculator' && 'Calculadora de Promoções'}
               {activeTab === 'dashboard' && 'Visão Geral'}
               {activeTab === 'products' && 'Meus Produtos'}
               {activeTab === 'kits' && 'Combos & Kits'}
@@ -613,6 +903,7 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
+            {activeTab === 'calculator' && renderCalculator()}
             {activeTab === 'dashboard' && renderDashboard()}
             {activeTab === 'products' && renderProducts()}
             {activeTab === 'costs' && renderCosts()}
